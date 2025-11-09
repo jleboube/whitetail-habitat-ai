@@ -1,0 +1,22 @@
+
+
+services:
+  whitetail-app:
+    build:
+      context: .
+      args:
+        VITE_AI_PROVIDER: ${VITE_AI_PROVIDER:-gemini}
+        VITE_GEMINI_API_KEY: ${VITE_GEMINI_API_KEY}
+        VITE_OPENAI_API_KEY: ${VITE_OPENAI_API_KEY}
+        VITE_OPENAI_MODEL: ${VITE_OPENAI_MODEL:-gpt-4o-mini}
+        VITE_OPENAI_MODEL_THINKING: ${VITE_OPENAI_MODEL_THINKING:-gpt-4o}
+        VITE_ANTHROPIC_API_KEY: ${VITE_ANTHROPIC_API_KEY}
+        VITE_ANTHROPIC_MODEL: ${VITE_ANTHROPIC_MODEL:-claude-3-5-sonnet-20241022}
+        VITE_ANTHROPIC_MODEL_THINKING: ${VITE_ANTHROPIC_MODEL_THINKING:-claude-3-5-sonnet-20241022}
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
+        REACT_APP_GOOGLE_MAPS_API_KEY: ${REACT_APP_GOOGLE_MAPS_API_KEY:-${VITE_GOOGLE_MAPS_API_KEY}}
+    ports:
+      - "${PORT:-7362}:80"
+    env_file:
+      - .env
+    restart: unless-stopped

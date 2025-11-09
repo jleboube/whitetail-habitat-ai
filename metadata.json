@@ -1,0 +1,7 @@
+{
+  "name": "Whitetail Habitat AI",
+  "description": "An interactive map-based chatbot that provides expert advice on planting crops and trees to attract whitetail deer, using real-time Google Maps data and advanced AI.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

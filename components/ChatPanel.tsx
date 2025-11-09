@@ -19,6 +19,10 @@ interface ChatPanelProps {
     onProviderChange: (provider: Provider) => void;
     activeSessionId: string;
     className?: string;
+    hasLocation: boolean;
+    locationError?: string | null;
+    onRequestLocation: () => void;
+    isRequestingLocation: boolean;
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
@@ -34,6 +38,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     onProviderChange,
     activeSessionId,
     className,
+    hasLocation,
+    locationError,
+    onRequestLocation,
+    isRequestingLocation,
 }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +80,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                     )}
                 </div>
             </div>
+            {!hasLocation && (
+                <div className="px-4 py-3 bg-yellow-900/70 text-yellow-100 text-sm flex flex-col gap-2 border-b border-yellow-700">
+                    <div>
+                        Share your location so the map can auto-center on your property.
+                        {locationError && <span className="ml-1 text-yellow-300">({locationError})</span>}
+                    </div>
+                    <button
+                        onClick={onRequestLocation}
+                        disabled={isRequestingLocation}
+                        className="self-start bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1 rounded"
+                    >
+                        {isRequestingLocation ? 'Requesting location…' : 'Use my location'}
+                    </button>
+                </div>
+            )}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg) => (
                     <Message key={msg.id} message={msg} onGetPrediction={onGetPrediction} isLoading={isLoading} />

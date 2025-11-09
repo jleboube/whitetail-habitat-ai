@@ -51,7 +51,7 @@ interface ProviderChatState {
 }
 
 const App: React.FC = () => {
-    const { location, error: locationError } = useGeolocation();
+    const { location, error: locationError, loading: isLocationLoading, requestLocation } = useGeolocation();
     const [activeProvider, setActiveProvider] = useState<Provider>(DEFAULT_PROVIDER);
     const [providerChats, setProviderChats] = useState<Record<Provider, ProviderChatState>>({});
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -219,6 +219,8 @@ const App: React.FC = () => {
                     className="w-full h-full"
                     propertyBoundary={propertyBoundary}
                     onBoundaryUpdate={handleBoundaryUpdate}
+                    onRequestLocation={requestLocation}
+                    isRequestingLocation={isLocationLoading}
                 />
             </div>
             <ChatPanel
@@ -234,6 +236,10 @@ const App: React.FC = () => {
                 onProviderChange={handleProviderChange}
                 activeSessionId={activeSessionId}
                 className="order-2 md:order-1 w-full md:w-1/3 h-[55vh] md:h-full border-b md:border-b-0 md:border-r border-gray-800"
+                hasLocation={Boolean(location)}
+                locationError={locationError}
+                onRequestLocation={requestLocation}
+                isRequestingLocation={isLocationLoading}
             />
         </div>
     );

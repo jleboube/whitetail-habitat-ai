@@ -42,6 +42,8 @@ interface MapPanelProps {
   className?: string;
   propertyBoundary: PropertyBoundary | null;
   onBoundaryUpdate: (boundary: PropertyBoundary | null) => void;
+  onRequestLocation: () => void;
+  isRequestingLocation: boolean;
 }
 
 const polygonOptions: google.maps.PolygonOptions = {
@@ -61,6 +63,8 @@ const MapPanel: React.FC<MapPanelProps> = ({
   className,
   propertyBoundary,
   onBoundaryUpdate,
+  onRequestLocation,
+  isRequestingLocation,
 }) => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [showDeerLayer, setShowDeerLayer] = useState(false);
@@ -276,6 +280,21 @@ const MapPanel: React.FC<MapPanelProps> = ({
             <p className="text-sm font-semibold text-green-300">Custom Property Boundary</p>
             <p className="text-lg font-bold">{propertyBoundary.areaAcres.toFixed(2)} acres</p>
             <p className="text-xs text-gray-400">Use Draw mode to adjust or Clear to remove.</p>
+          </div>
+        )}
+        {!location && (
+          <div className="absolute inset-x-4 bottom-20 md:bottom-auto md:top-4 md:left-4 md:right-auto z-10 bg-gray-900 bg-opacity-90 text-gray-100 px-4 py-4 rounded-xl shadow-2xl max-w-sm">
+            <p className="text-sm font-semibold mb-2">Share your location</p>
+            <p className="text-xs text-gray-300 mb-3">
+              Center the map on your current property to start drawing boundaries and viewing deer layers.
+            </p>
+            <button
+              onClick={onRequestLocation}
+              disabled={isRequestingLocation}
+              className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 rounded"
+            >
+              {isRequestingLocation ? 'Requesting location…' : 'Use my location'}
+            </button>
           </div>
         )}
     </div>

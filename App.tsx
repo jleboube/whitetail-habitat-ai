@@ -236,10 +236,6 @@ const App: React.FC = () => {
                 onProviderChange={handleProviderChange}
                 activeSessionId={activeSessionId}
                 className="order-2 md:order-1 w-full md:w-1/3 h-[55vh] md:h-full border-b md:border-b-0 md:border-r border-gray-800"
-                hasLocation={Boolean(location)}
-                locationError={locationError}
-                onRequestLocation={requestLocation}
-                isRequestingLocation={isLocationLoading}
             />
         </div>
     );

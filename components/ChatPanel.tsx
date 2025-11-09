@@ -46,7 +46,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     }, [messages, isLoading]);
 
     return (
-        <div className={clsx("flex flex-col bg-gray-800 border-gray-700", className)}>
+        <div className={clsx("flex flex-col h-full bg-gray-800 border-gray-700", className)}>
             <div className="p-4 border-b border-gray-700 flex items-center justify-between bg-gray-900">
                 <div className="flex items-center">
                     <BotMessageSquare className="text-green-400 mr-3" size={28} />

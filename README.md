@@ -66,6 +66,10 @@ Environment variables from `.env` are forwarded to the Vite build via Docker bui
 
 If a user supplies a line like `Address: 123 Deer Lane, Iowa`, the client makes a lightweight Google Geocoding request to approximate the parcel bounds/acreage and appends that context to the model prompt. This helps Gemini / OpenAI / Claude tailor recommendations using estimated property size without manually restating acreage.
 
+### Map drawing & acreage estimation
+
+On desktop and mobile, the map now sits above the chat (stacked on mobile, side-by-side on large screens). Tap the ✏️ icon in the map controls to trace a property boundary; the app estimates acreage using the Google Maps drawing/geometry libraries, displays the total in-map, and forwards the polygon data to the AI so it can infer cover types and acreage-aware plans. Use the eraser icon to clear or redraw as needed.
+
 ## Useful scripts
 
 | Command | Description |

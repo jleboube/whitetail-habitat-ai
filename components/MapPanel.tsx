@@ -7,6 +7,7 @@ import { GoogleMap, HeatmapLayer, Polyline, Marker } from '@react-google-maps/ap
 import { LatLng, DeerHotspot, DeerCorridor } from '../types';
 import { getDeerDensityData } from '../services/aiService';
 import { Provider } from '../config/providers';
+import { PropertyBoundary } from '../services/mapsService';
 import { Loader, AlertTriangle } from 'lucide-react';
 import MapControls from './MapControls';
 import MapLegend from './MapLegend';
@@ -39,16 +40,38 @@ interface MapPanelProps {
   loadError?: Error;
   provider: Provider;
   className?: string;
+  propertyBoundary: PropertyBoundary | null;
+  onBoundaryUpdate: (boundary: PropertyBoundary | null) => void;
 }
 
-const MapPanel: React.FC<MapPanelProps> = ({ location, isLoaded, loadError, provider, className }) => {
+const polygonOptions: google.maps.PolygonOptions = {
+  fillColor: '#10b981',
+  fillOpacity: 0.25,
+  strokeColor: '#10b981',
+  strokeWeight: 2,
+  editable: false,
+  draggable: false,
+};
+
+const MapPanel: React.FC<MapPanelProps> = ({
+  location,
+  isLoaded,
+  loadError,
+  provider,
+  className,
+  propertyBoundary,
+  onBoundaryUpdate,
+}) => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [showDeerLayer, setShowDeerLayer] = useState(false);
   const [deerData, setDeerData] = useState<{ hotspots: DeerHotspot[], corridors: DeerCorridor[] }>({ hotspots: [], corridors: [] });
   const [isMapDataLoading, setIsMapDataLoading] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   // Fix: Use ReturnType<typeof setTimeout> for browser compatibility instead of NodeJS.Timeout.
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(null);
+  const boundaryOverlayRef = useRef<google.maps.Polygon | null>(null);
 
   const onLoad = useCallback((mapInstance: google.maps.Map) => {
     setMap(mapInstance);
@@ -102,6 +125,88 @@ const MapPanel: React.FC<MapPanelProps> = ({ location, isLoaded, loadError, prov
     }
   }, [provider, showDeerLayer, fetchDeerData]);
 
+  const persistBoundary = useCallback(
+    (polygon: google.maps.Polygon | null) => {
+      if (!polygon || !window.google?.maps?.geometry) {
+        onBoundaryUpdate(null);
+        return;
+      }
+      const path = polygon
+        .getPath()
+        .getArray()
+        .map(point => ({ lat: point.lat(), lng: point.lng() }));
+      const areaSqMeters = google.maps.geometry.spherical.computeArea(polygon.getPath());
+      onBoundaryUpdate({
+        address: 'Custom map boundary',
+        areaAcres: areaSqMeters / 4046.85642,
+        polygon: path,
+      });
+    },
+    [onBoundaryUpdate]
+  );
+
+  useEffect(() => {
+    if (!map || !window.google?.maps?.drawing || drawingManagerRef.current) return;
+
+    const drawingManager = new google.maps.drawing.DrawingManager({
+      drawingMode: null,
+      drawingControl: false,
+      polygonOptions,
+    });
+    drawingManagerRef.current = drawingManager;
+    drawingManager.setMap(map);
+
+    google.maps.event.addListener(drawingManager, 'overlaycomplete', (event: google.maps.drawing.OverlayCompleteEvent) => {
+      if (event.type !== google.maps.drawing.OverlayType.POLYGON) {
+        event.overlay?.setMap(null);
+        return;
+      }
+      if (boundaryOverlayRef.current) {
+        boundaryOverlayRef.current.setMap(null);
+      }
+      boundaryOverlayRef.current = event.overlay as google.maps.Polygon;
+      drawingManager.setDrawingMode(null);
+      setIsDrawing(false);
+      persistBoundary(boundaryOverlayRef.current);
+    });
+  }, [map, persistBoundary]);
+
+  useEffect(() => {
+    if (!map) return;
+    if (!propertyBoundary) {
+      if (boundaryOverlayRef.current) {
+        boundaryOverlayRef.current.setMap(null);
+        boundaryOverlayRef.current = null;
+      }
+      return;
+    }
+    if (!window.google?.maps) return;
+    if (boundaryOverlayRef.current) {
+      boundaryOverlayRef.current.setMap(null);
+    }
+    const polygon = new google.maps.Polygon({
+      ...polygonOptions,
+      paths: propertyBoundary.polygon,
+    });
+    polygon.setMap(map);
+    boundaryOverlayRef.current = polygon;
+  }, [propertyBoundary, map]);
+
+  const handleStartDrawing = () => {
+    if (!drawingManagerRef.current || !window.google?.maps?.drawing) return;
+    drawingManagerRef.current.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+    setIsDrawing(true);
+  };
+
+  const handleClearBoundary = () => {
+    if (boundaryOverlayRef.current) {
+      boundaryOverlayRef.current.setMap(null);
+      boundaryOverlayRef.current = null;
+    }
+    setIsDrawing(false);
+    onBoundaryUpdate(null);
+  };
+
   const handleZoomIn = () => map?.setZoom((map.getZoom() || 12) + 1);
   const handleZoomOut = () => map?.setZoom((map.getZoom() || 12) - 1);
   const handleRecenter = () => location && map?.panTo(location);
@@ -126,7 +231,7 @@ const MapPanel: React.FC<MapPanelProps> = ({ location, isLoaded, loadError, prov
   }
 
   return (
-    <div className={clsx("flex flex-col bg-gray-700 relative", className)}>
+    <div className={clsx("flex flex-col h-full bg-gray-700 relative", className)}>
         <GoogleMap
             mapContainerStyle={containerStyle}
             center={location || { lat: 40.7128, lng: -74.0060 }} // Default to NYC if no location
@@ -157,11 +262,22 @@ const MapPanel: React.FC<MapPanelProps> = ({ location, isLoaded, loadError, prov
                 onRecenter={handleRecenter}
                 isLayerVisible={showDeerLayer}
                 isLoading={isMapDataLoading}
+                onStartDrawing={handleStartDrawing}
+                onClearBoundary={handleClearBoundary}
+                hasBoundary={Boolean(propertyBoundary)}
+                isDrawing={isDrawing}
             />
         </div>
         <div className="absolute bottom-4 left-4 z-10">
             <MapLegend isLayerVisible={showDeerLayer}/>
         </div>
+        {propertyBoundary && (
+          <div className="absolute bottom-4 right-4 z-10 bg-gray-800 bg-opacity-85 text-gray-100 px-4 py-3 rounded-lg shadow-lg max-w-xs">
+            <p className="text-sm font-semibold text-green-300">Custom Property Boundary</p>
+            <p className="text-lg font-bold">{propertyBoundary.areaAcres.toFixed(2)} acres</p>
+            <p className="text-xs text-gray-400">Use Draw mode to adjust or Clear to remove.</p>
+          </div>
+        )}
     </div>
   );
 };

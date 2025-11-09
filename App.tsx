@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import clsx from 'clsx';
 import ChatPanel from './components/ChatPanel';
 import MapPanel from './components/MapPanel';
 import { useGeolocation } from './hooks/useGeolocation';
@@ -9,8 +8,9 @@ import { ChatMessage } from './types';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { readEnv } from './utils/env';
 import { buildPropertyContextFromPrompt } from './services/mapsService';
+import { PropertyBoundary } from './services/mapsService';
 
-const MAP_LIBRARIES = ['visualization'] as const;
+const MAP_LIBRARIES = ['visualization', 'drawing', 'geometry'] as const;
 
 const createSessionId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -37,6 +37,14 @@ const buildWelcomeMessages = (location: { lat: number; lng: number } | null, loc
     return messages;
 };
 
+const formatBoundaryContext = (boundary: PropertyBoundary) => {
+    const coords = boundary.polygon
+        .slice(0, 20)
+        .map(point => `(${point.lat.toFixed(5)}, ${point.lng.toFixed(5)})`)
+        .join(' -> ');
+    return `User supplied a hand-drawn property boundary on the map.\n- Estimated area: ${boundary.areaAcres.toFixed(2)} acres.\n- Coordinate path: ${coords}${boundary.polygon.length > 20 ? ' -> ...' : ''}.\nIncorporate this polygon when discussing cover types, habitat composition, and acreage-aware recommendations.`;
+};
+
 interface ProviderChatState {
     sessionId: string;
     messages: ChatMessage[];
@@ -49,7 +57,7 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isThinkingMode, setIsThinkingMode] = useState<boolean>(false);
     const [loadingMessage, setLoadingMessage] = useState<string>('');
-    const [mobilePanel, setMobilePanel] = useState<'chat' | 'map'>('chat');
+    const [propertyBoundary, setPropertyBoundary] = useState<PropertyBoundary | null>(null);
     
     const googleMapsApiKey =
         readEnv('REACT_APP_GOOGLE_MAPS_API_KEY') ||
@@ -127,7 +135,14 @@ const App: React.FC = () => {
 
         try {
             const propertyContext = await buildPropertyContextFromPrompt(prompt);
-            const augmentedPrompt = propertyContext ? `${prompt}\n\n${propertyContext}` : prompt;
+            const contextParts: string[] = [];
+            if (propertyContext) {
+                contextParts.push(propertyContext);
+            }
+            if (propertyBoundary) {
+                contextParts.push(formatBoundaryContext(propertyBoundary));
+            }
+            const augmentedPrompt = contextParts.length ? `${prompt}\n\n${contextParts.join('\n\n')}` : prompt;
             const response = await generateResponse({
                 prompt: augmentedPrompt,
                 image,
@@ -157,7 +172,7 @@ const App: React.FC = () => {
             setIsLoading(false);
             setLoadingMessage('');
         }
-    }, [activeProvider, isThinkingMode, location, updateCurrentProviderMessages]);
+    }, [activeProvider, isThinkingMode, location, updateCurrentProviderMessages, propertyBoundary]);
     
     const handleGetPrediction = useCallback(async (messageId: string, planText: string) => {
         setIsLoading(true);
@@ -189,27 +204,22 @@ const App: React.FC = () => {
         label: getProviderLabel(value),
     }));
 
+    const handleBoundaryUpdate = useCallback((boundary: PropertyBoundary | null) => {
+        setPropertyBoundary(boundary);
+    }, []);
+
     return (
-        <div className="flex flex-col md:flex-row h-screen w-screen bg-gray-900 text-gray-200 font-sans">
-            <div className="md:hidden flex border-b border-gray-800">
-                <button
-                    className={clsx(
-                        'flex-1 py-3 text-center text-sm font-semibold',
-                        mobilePanel === 'chat' ? 'bg-gray-800 text-white' : 'bg-gray-900 text-gray-400'
-                    )}
-                    onClick={() => setMobilePanel('chat')}
-                >
-                    Chat
-                </button>
-                <button
-                    className={clsx(
-                        'flex-1 py-3 text-center text-sm font-semibold',
-                        mobilePanel === 'map' ? 'bg-gray-800 text-white' : 'bg-gray-900 text-gray-400'
-                    )}
-                    onClick={() => setMobilePanel('map')}
-                >
-                    Map
-                </button>
+        <div className="flex flex-col md:flex-row h-screen w-screen bg-gray-900 text-gray-200 font-sans overflow-hidden">
+            <div className="order-1 md:order-2 w-full md:w-2/3 h-[45vh] md:h-full border-b md:border-b-0 md:border-l border-gray-800">
+                <MapPanel 
+                    location={location} 
+                    isLoaded={isLoaded} 
+                    loadError={loadError}
+                    provider={activeProvider}
+                    className="w-full h-full"
+                    propertyBoundary={propertyBoundary}
+                    onBoundaryUpdate={handleBoundaryUpdate}
+                />
             </div>
             <ChatPanel
                 messages={messages}
@@ -223,20 +233,7 @@ const App: React.FC = () => {
                 providerOptions={providerOptions}
                 onProviderChange={handleProviderChange}
                 activeSessionId={activeSessionId}
-                className={clsx(
-                    'w-full md:w-1/3 h-full border-b md:border-b-0 md:border-r',
-                    mobilePanel === 'map' ? 'hidden md:flex' : 'flex'
-                )}
-            />
-            <MapPanel 
-                location={location} 
-                isLoaded={isLoaded} 
-                loadError={loadError}
-                provider={activeProvider}
-                className={clsx(
-                    'w-full md:w-2/3 h-full',
-                    mobilePanel === 'chat' ? 'hidden md:flex' : 'flex'
-                )}
+                className="order-2 md:order-1 w-full md:w-1/3 h-[55vh] md:h-full border-b md:border-b-0 md:border-r border-gray-800"
             />
         </div>
     );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, ZoomIn, ZoomOut, Compass, Loader } from 'lucide-react';
+import { Layers, ZoomIn, ZoomOut, Compass, Loader, PencilLine, Eraser } from 'lucide-react';
 
 interface MapControlsProps {
     onToggleLayer: () => void;
@@ -8,6 +8,10 @@ interface MapControlsProps {
     onRecenter: () => void;
     isLayerVisible: boolean;
     isLoading: boolean;
+    onStartDrawing: () => void;
+    onClearBoundary: () => void;
+    hasBoundary: boolean;
+    isDrawing: boolean;
 }
 
 const MapControls: React.FC<MapControlsProps> = ({
@@ -16,7 +20,11 @@ const MapControls: React.FC<MapControlsProps> = ({
     onZoomOut,
     onRecenter,
     isLayerVisible,
-    isLoading
+    isLoading,
+    onStartDrawing,
+    onClearBoundary,
+    hasBoundary,
+    isDrawing,
 }) => {
     return (
         <div className="bg-gray-800 bg-opacity-80 backdrop-blur-sm rounded-lg p-2 space-y-2 shadow-lg flex flex-col items-center">
@@ -26,6 +34,21 @@ const MapControls: React.FC<MapControlsProps> = ({
                 title={isLayerVisible ? 'Hide Deer Layer' : 'Show Deer Layer'}
             >
                 {isLoading ? <Loader size={20} className="animate-spin" /> : <Layers size={20} />}
+            </button>
+            <button
+                onClick={onStartDrawing}
+                className={`w-10 h-10 flex items-center justify-center p-2 text-gray-300 hover:bg-gray-700 rounded-md transition-colors ${isDrawing ? 'bg-green-600 text-white' : ''}`}
+                title="Draw Property Boundary"
+            >
+                <PencilLine size={20} />
+            </button>
+            <button
+                onClick={onClearBoundary}
+                disabled={!hasBoundary}
+                className={`w-10 h-10 flex items-center justify-center p-2 ${hasBoundary ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-500 cursor-not-allowed'} rounded-md transition-colors`}
+                title="Clear Property Boundary"
+            >
+                <Eraser size={20} />
             </button>
             <div className="bg-gray-700 rounded-md">
                 <button onClick={onZoomIn} className="w-10 h-10 flex items-center justify-center p-2 text-gray-300 hover:bg-gray-600 rounded-t-md transition-colors" title="Zoom In">
